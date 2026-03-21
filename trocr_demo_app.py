@@ -34,8 +34,8 @@ with st.sidebar:
     model_option = st.selectbox(
         "Selecciona el tipo de modelo",
         options=[
-            "microsoft/trocr-base-printed",
-            "microsoft/trocr-large-handwritten"
+            "microsoft/trocr-base-handwritten",
+            "microsoft/trocr-base-printed"
         ],
         index=0
     )
@@ -50,7 +50,12 @@ with col1:
     st.subheader("Imagen de entrada")
     if uploaded_file is not None:
         image = Image.open(uploaded_file).convert("RGB")
-        st.image(image, caption="Imagen cargada", use_container_width=True)
+        st.image(image, caption="Imagen cargada", width="stretch")
+        
+        # Alerta sobre multilínea si la imagen es muy alta
+        w, h = image.size
+        if h > w * 0.5:
+             st.warning("⚠️ **Nota:** Esta imagen parece tener varias líneas o un formato vertical. TrOCR funciona mejor con imágenes que contienen **una sola línea** de texto.")
     else:
         st.info("Carga una imagen para comenzar.")
 
@@ -93,8 +98,11 @@ st.markdown(
     - **Decoder autoregresivo:** genera el texto token por token.
     - **Salida final:** secuencia textual reconocida desde la imagen.
 
-    **Observación experimental:**
-    - El modelo **printed** funciona mejor con texto impreso.
-    - El modelo **handwritten** funciona mejor con texto manuscrito.
+    **Notas Técnicas Relevantes:**
+    - **Aviso "MISSING encoder.pooler.dense"**: Es normal. TrOCR no utiliza la capa de *pooling* del encoder ViT (diseñada para clasificación de imágenes) porque el decoder necesita la secuencia completa de parches. Puedes ignorar este mensaje.
+    - **Segmentación por líneas**: TrOCR es un modelo de **nivel de línea**. Para documentos completos, se requiere un paso previo de segmentación de líneas.
+    - **Modelos**:
+        - El modelo **printed** es ideal para formularios y documentos digitales.
+        - El modelo **handwritten** sobresale en texto escrito a mano (entrenado con el dataset IAM).
     """
 )
