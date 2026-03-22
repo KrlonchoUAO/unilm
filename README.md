@@ -56,6 +56,44 @@ El modelo utiliza self-attention, permitiendo:
 - eliminación de segmentación manual
 - integración visión + lenguaje
 
+----
+### 🧠 ¿Cómo "lee" el modelo? El Mecanismo de Atención y los Tensores Q, K, V
+
+A diferencia de los sistemas OCR tradicionales que "escanean" la imagen de izquierda a derecha de forma rígida, TrOCR utiliza el **Mecanismo de Atención** para "concentrarse" dinámicamente en diferentes partes de la imagen mientras escribe. 
+
+Este proceso se divide en tres fases principales, dominadas por la interacción de tres tensores matemáticos: **Query (Q - Consulta)**, **Key (K - Clave)** y **Value (V - Valor)**.
+
+#### 1. El Encoder Visual: Entendiendo la imagen (Self-Attention)
+El modelo no procesa la imagen entera de golpe. Primero, la redimensiona a 384x384 píxeles y la **corta en una cuadrícula de parches de 16x16 píxeles**. 
+![vectorización](assets/vector.gif)
+
+
+Dentro del **Encoder (ViT)**, los parches se aplican Auto-Atención entre sí. 
+* **Q, K, V provienen de la misma imagen:** Un parche (ej. la curva superior de una "S") lanza una consulta (**Q**) a los demás parches (**K**) para buscar el resto de la letra y extraer su información (**V**). Esto permite que el modelo entienda el contexto visual completo.
+
+#### 2. El Decoder Textual: Entendiendo la gramática (Masked Self-Attention)
+Mientras el modelo genera el texto, necesita saber qué ha escrito antes para que la palabra tenga sentido. 
+* **Q, K, V provienen del texto generado:** Si el modelo ya escribió la letra "H" y "o", la nueva consulta (**Q**) analiza las claves (**K**) de esas letras anteriores para deducir el valor (**V**) lógico: que la siguiente letra probablemente sea una "l".
+
+#### 3. El Efecto de Concentración: Uniendo Visión y Lenguaje (Cross-Attention)
+Aquí ocurre la verdadera magia del OCR. Es el puente de comunicación entre el texto y la imagen.
+
+> 🖼️ **[SUGERENCIA DE DIAGRAMA 2: "El Efecto de Concentración (Cross-Attention)"]**
+> *Crea un diagrama que muestre a la izquierda el texto parcial generado (ej. "Hello W") y a la derecha la imagen original. Dibuja una flecha que salga de la "W" (identificada como **Query / Q**) apuntando hacia la imagen. En la imagen, pon un mapa de calor (resaltado en amarillo o rojo) exactamente sobre la zona donde está escrita la "o" de "World" (identificando la imagen como **Key / K** y **Value / V**).*
+
+Para predecir el siguiente carácter, el modelo hace lo siguiente:
+1. **Query (Q):** El decoder (texto) dice: *"Ya escribí 'Hello W', ¿qué sigue visualmente?"*
+2. **Key (K):** El encoder (imagen) tiene etiquetados todos sus parches y responde: *"Aquí están las coordenadas de todas las formas visuales que tengo"*.
+3. **Value (V):** El modelo **se concentra (presta atención)** específicamente en el parche de la imagen donde está dibujada la siguiente letra, extrae sus píxeles y el decoder finalmente predice la letra **"o"**.
+
+> 🖼️ **[SUGERENCIA DE DIAGRAMA 3: "Flujo de Entrada a Salida"]**
+> *Crea un diagrama de flujo simple (puedes inspirarte en la Figura 1 del paper original de TrOCR). Que muestre: Imagen Original ➔ Extracción de Parches ➔ [ENCODER] ➔ Tensores K, V ➔[DECODER] (Recibe Q del texto anterior) ➔ Probabilidades Softmax ➔ Texto Final ("Hello World").*
+
+Este comportamiento explica por qué el modelo es tan potente con texto impreso, pero a veces "alucina" (inventa palabras) en el manuscrito: si el modelo no logra concentrarse (hacer *match* entre Q y K) por la mala caligrafía, el Decoder ignora la imagen y simplemente adivina la siguiente palabra basándose en su modelo de lenguaje interno.
+
+
+
+
 ## 4. Metodología
 🔧 Entorno
 
